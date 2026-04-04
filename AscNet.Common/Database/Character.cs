@@ -54,12 +54,24 @@ namespace AscNet.Common.Database
             return character;
         }
 
+        public static CharacterQualityFragmentTable? GetMinCharacterFragment(int id)
+        {
+            var characterMinQuality = TableReaderV2
+                .Parse<CharacterQualityTable>()
+                .Where(x => x.CharacterId == id)
+                .Min(x => x.Quality);
+
+            return TableReaderV2
+                .Parse<CharacterQualityFragmentTable>()
+                .FirstOrDefault(x => x.Quality == characterMinQuality);
+        }
+
         /// <summary>
         /// Don't forget to send Equip, Fashion, and the Character notify after using this!
         /// </summary>
         /// <param name="id"></param>
         /// <exception cref="ServerCodeException"></exception>
-        public AddCharacterRet AddCharacter(uint id)
+        public AddCharacterRet AddCharacter(uint id, int level = 1)
         {
             AddCharacterRet ret = new();
             CharacterTable? character = TableReaderV2.Parse<CharacterTable>().Find(x => x.Id == id);
@@ -80,7 +92,7 @@ namespace AscNet.Common.Database
             CharacterData characterData = new()
             {
                 Id = (uint)character.Id,
-                Level = 1,
+                Level = level,
                 Exp = 0,
                 Quality = characterQuality.Quality,
                 InitQuality = characterQuality.Quality,
@@ -188,14 +200,14 @@ namespace AscNet.Common.Database
             };
         }
 
-        public EquipData AddEquip(uint equipId, int characterId = 0)
+        public EquipData AddEquip(uint equipId, int characterId = 0, int level = 1)
         {
             EquipData equipData = new()
             {
                 Id = NextEquipId,
                 TemplateId = equipId,
                 CharacterId = characterId,
-                Level = 1,
+                Level = level,
                 Exp = 0,
                 Breakthrough = 0,
                 ResonanceInfo = new(),

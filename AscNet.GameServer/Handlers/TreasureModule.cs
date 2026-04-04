@@ -1,22 +1,29 @@
-﻿using AscNet.Common.MsgPack;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
+using AscNet.Common;
+using AscNet.Common.MsgPack;
 using AscNet.Common.Util;
+using AscNet.Table.V2.share.exhibition;
+using AscNet.Table.V2.share.fuben.mainline;
 using AscNet.Table.V2.share.reward;
-using AscNet.Table.V2.share.task;
 using MessagePack;
 
 namespace AscNet.GameServer.Handlers
 {
-
     #region MsgPackScheme
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     [MessagePackObject(true)]
-    public class GetCourseRewardRequest
+    public class TreasureRewardRequest
     {
-        public int StageId;
+        public int TreasureId;
     }
-    
+
     [MessagePackObject(true)]
-    public class GetCourseRewardResponse
+    public class TreasureRewardResponse
     {
         public int Code;
         public List<RewardGoods> RewardGoodsList { get; set; } = new();
@@ -24,23 +31,17 @@ namespace AscNet.GameServer.Handlers
 #pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     #endregion
 
-    internal class TaskModule
+    internal class TreasureModule
     {
-        [RequestPacketHandler("DoClientTaskEventRequest")]
-        public static void DoClientTaskEventRequestHandler(Session session, Packet.Request packet)
+        [RequestPacketHandler("ReceiveTreasureRewardRequest")]
+        public static void HandleReceiveTreasureRewardRequestHandler(Session session, Packet.Request packet)
         {
-            session.SendResponse(new DoClientTaskEventResponse(), packet.Id);
-        }
-
-        [RequestPacketHandler("GetCourseRewardRequest")]
-        public static void GetCourseRewardRequestHandler(Session session, Packet.Request packet)
-        {
-            var request = MessagePackSerializer.Deserialize<GetCourseRewardRequest>(packet.Content);
-            var course = TableReaderV2.Parse<CourseTable>().Find(x => x.StageId == request.StageId);
-            var rewardId = course?.RewardId.ToString();
+            var request = MessagePackSerializer.Deserialize<TreasureRewardRequest>(packet.Content);
+            var treasure = TableReaderV2.Parse<TreasureTable>().Find(x => x.TreasureId == request.TreasureId);
+            var rewardId = treasure?.RewardId.ToString();
             if (rewardId == null)
             {
-                session.SendResponse(new GetCourseRewardResponse() { Code = 1 }, packet.Id);
+                session.SendResponse(new TreasureRewardResponse() { Code = 1 }, packet.Id);
                 return;
             }
 
@@ -50,14 +51,14 @@ namespace AscNet.GameServer.Handlers
                 return id.StartsWith(rewardId) && id.Length > rewardId.Length;
             });
 
-            var success = session.stage.AddCourse((uint)request.StageId);
+            var success = session.player.AddTreasure(request.TreasureId);
             if (!success)
             {
-                session.SendResponse(new GetCourseRewardResponse() { Code = 1 }, packet.Id);
+                session.SendResponse(new TreasureRewardResponse() { Code = 1 }, packet.Id);
                 return;
             }
 
-            GetCourseRewardResponse response = new()
+            TreasureRewardResponse response = new()
             {
                 RewardGoodsList = RewardHandler.GiveRewards(rewardGoods, session)
             };

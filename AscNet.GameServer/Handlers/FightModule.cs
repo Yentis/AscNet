@@ -355,7 +355,6 @@ namespace AscNet.GameServer.Handlers
             stageTable.CardExp *= challengeCount;
             stageTable.TeamExp *= challengeCount;
 
-            List<RewardGoods> rewards = new();
             List<List<RewardGoods>> multiRewards = new();
             List<RewardTable> rewardTables = TableReaderV2.Parse<RewardTable>().Where(x => session.stage.Stages.ContainsKey(req.Result.StageId) ? x.Id == stageTable.FinishDropId : (x.Id == stageTable.FinishDropId || x.Id == stageTable.FirstRewardId)).ToList();
             if (rewardTables.Count == 0)
@@ -368,61 +367,13 @@ namespace AscNet.GameServer.Handlers
 
             for (int i = 0; i < challengeCount; i++)
             {
-                foreach (var rewardGoodsId in rewardTables.SelectMany(x => x.SubIds))
-                {
-                    RewardGoodsTable? rewardGood = TableReaderV2.Parse<RewardGoodsTable>().FirstOrDefault(x => x.Id == rewardGoodsId);
-                    if (rewardGood is not null)
-                    {
-                        // Item type formula
-                        int rewardTypeVal = (int)MathF.Floor((rewardGood.TemplateId > 0 ? rewardGood.TemplateId : rewardGood.Id) / 1000000) + 1;
-                        RewardType rewardType = RewardType.Item;
-                        try
-                        {
-                            rewardType = (RewardType)Enum.ToObject(typeof(RewardType), rewardTypeVal);
-                        }
-                        catch (Exception)
-                        {
-                            session.log.Error($"Failed to convert {rewardTypeVal} to {nameof(RewardType)} enum object!");
-                        }
+                var rewardGoods = rewardTables
+                    .SelectMany(x => x.SubIds)
+                    .Select(x => TableReaderV2.Parse<RewardGoodsTable>().FirstOrDefault(y => y.Id == x))
+                    .OfType<RewardGoodsTable>();
 
-                        // TODO: Implement other types. Other types are behaving weirdly
-                        if (rewardType == RewardType.Item)
-                        {
-                            ItemTable? itemData = TableReaderV2.Parse<ItemTable>().Find(x => x.Id == rewardGood.TemplateId);
-                            if (itemData is not null)
-                            {
-                                // Custom handler for some items that aren't meant to be in the inventory.
-                                DropHandlerDelegate? dropHandler = DropsHandlerFactory.GetDropHandler(itemData.Id);
-                                if (itemData.IsHidden() && dropHandler is not null)
-                                {
-                                    rewards.AddRange(dropHandler.Invoke(session, rewardGood.Count).Select(x => new RewardGoods()
-                                    {
-                                        Id = rewardGood.Id,
-                                        TemplateId = x.TemplateId,
-                                        Count = x.Count,
-                                        Level = x.Level,
-                                        RewardType = (int)x.Type,
-                                        Quality = x.Quality
-                                    }));
-                                    continue;
-                                }
-                            }
-
-                            notifyItemData.ItemDataList.Add(session.inventory.Do(rewardGood.TemplateId, rewardGood.Count));
-
-                            rewards.Add(new()
-                            {
-                                Id = rewardGood.Id,
-                                TemplateId = rewardGood.TemplateId,
-                                Count = rewardGood.Count,
-                                RewardType = rewardTypeVal
-                            });
-                        }
-                    }
-                }
-
+                var rewards = RewardHandler.GiveRewards(rewardGoods, session);
                 multiRewards.Add(new List<RewardGoods>(rewards));
-                rewards.Clear();
             }
 
             session.SendPush(notifyItemData);
@@ -472,7 +423,7 @@ namespace AscNet.GameServer.Handlers
                     IsWin = true,
                     StageId = (uint)stageData.StageId,
                     StarsMark = (int)stageData.StarsMark,
-                    RewardGoodsList = multiRewards.Count > 0 ? multiRewards.First() : rewards,
+                    RewardGoodsList = multiRewards.Count > 0 ? multiRewards.First() : [],
                     MultiRewardGoodsList = multiRewards,
                     NpcHpInfo = req.Result.NpcHpInfo,
                     ChallengeCount = challengeCount

@@ -30,43 +30,12 @@ namespace AscNet.GameServer.Handlers
         {
             GatherRewardRequest req = MessagePackSerializer.Deserialize<GatherRewardRequest>(packet.Content);
             ExhibitionRewardTable? exhibitionReward = TableReaderV2.Parse<ExhibitionRewardTable>().Find(x => x.Id == req.Id);
-            IEnumerable<RewardGoodsTable> rewards = TableReaderV2.Parse<RewardGoodsTable>().Where(x => (TableReaderV2.Parse<RewardTable>().Find(x => x.Id == exhibitionReward?.RewardId)?.SubIds ?? new List<int>()).Contains(x.Id));
+            IEnumerable<RewardGoodsTable> rewardGoods = TableReaderV2.Parse<RewardGoodsTable>().Where(x => (TableReaderV2.Parse<RewardTable>().Find(x => x.Id == exhibitionReward?.RewardId)?.SubIds ?? new List<int>()).Contains(x.Id));
 
-            GatherRewardResponse rsp = new();
-            foreach (var rewardGoods in rewards)
+            GatherRewardResponse rsp = new()
             {
-                int rewardTypeVal = (int)MathF.Floor((rewardGoods.TemplateId > 0 ? rewardGoods.TemplateId : rewardGoods.Id) / 1000000) + 1;
-                RewardType rewardType = RewardType.Item;
-                try
-                {
-                    rewardType = (RewardType)Enum.ToObject(typeof(RewardType), rewardTypeVal);
-                }
-                catch (Exception)
-                {
-                    session.log.Error($"Failed to convert {rewardTypeVal} to {nameof(RewardType)} enum object!");
-                }
-
-                rsp.RewardGoods.Add(new()
-                {
-                    Id = rewardGoods.Id,
-                    TemplateId = rewardGoods.TemplateId,
-                    Count = rewardGoods.Count,
-                    RewardType = rewardTypeVal
-                });
-
-                switch (rewardType)
-                {
-                    case RewardType.Item:
-                        NotifyItemDataList notifyItemData = new()
-                        {
-                            ItemDataList = { session.inventory.Do(rewardGoods.TemplateId, rewardGoods.Count) }
-                        };
-                        session.SendPush(notifyItemData);
-                        break;
-                    default:
-                        break;
-                }
-            }
+                RewardGoods = RewardHandler.GiveRewards(rewardGoods, session)
+            };
 
             session.player.GatherRewards.Add(req.Id);
             session.SendPush(new NotifyGatherReward() { Id =  req.Id });

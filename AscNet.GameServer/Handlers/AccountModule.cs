@@ -167,7 +167,7 @@ namespace AscNet.GameServer.Handlers
                 {
                     FubenBaseData = new()
                 },
-                FubenMainLineData = new(),
+                FubenMainLineData = session.player.FubenMainLineData,
                 FubenChapterExtraLoginData = new(),
                 FubenUrgentEventData = new(),
                 UseBackgroundId = session.player.UseBackgroundId
@@ -243,6 +243,16 @@ namespace AscNet.GameServer.Handlers
                 HaveBackgroundIds = TableReaderV2.Parse<BackgroundTable>().Select(x => (uint)x.Id).ToList()
             };
 
+            NotifyTaskData notifyTaskData = new()
+            {
+                TaskData = new()
+                {
+                    NewbieHonorReward = false,
+                    NewbieUnlockPeriod = 7,
+                    Course = session.stage.Course,
+                }
+            };
+
             session.SendPush(notifyLogin);
             session.SendPush(notifyStageData);
             session.SendPush(notifyCharacterData);
@@ -260,14 +270,7 @@ namespace AscNet.GameServer.Handlers
                 },
                 BossInfo = new()
             });
-            session.SendPush(new NotifyTaskData()
-            {
-                TaskData = new()
-                {
-                    NewbieHonorReward = false,
-                    NewbieUnlockPeriod = 7
-                }
-            });
+            session.SendPush(notifyTaskData);
 
             #region DisclamerMail
             NotifyMails notifyMails = new();

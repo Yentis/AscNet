@@ -446,7 +446,9 @@ namespace AscNet.GameServer.Handlers
                 return;
             }
 
-            if (!session.inventory.Items.Any(x => x.Id == characterData.ItemId && x.Count >= 50))
+            var composeCount = Character.GetMinCharacterFragment(characterData.Id)?.ComposeCount ?? 50;
+
+            if (!session.inventory.Items.Any(x => x.Id == characterData.ItemId && x.Count >= composeCount))
             {
                 CharacterExchangeResponse rsp = new()
                 {
@@ -458,23 +460,12 @@ namespace AscNet.GameServer.Handlers
             }
 
             NotifyItemDataList notifyItemData = new();
-            // TODO: idk if it's always 50, please investigate later...
-            notifyItemData.ItemDataList.Add(session.inventory.Do(characterData.ItemId, 50 * -1));
+            notifyItemData.ItemDataList.Add(session.inventory.Do(characterData.ItemId, composeCount * -1));
             session.SendPush(notifyItemData);
 
             try
             {
-                NotifyEquipDataList notifyEquipData = new();
-                FashionSyncNotify fashionSync = new();
-                NotifyCharacterDataList notifyCharacterData = new();
-                var addRet = session.character.AddCharacter((uint)request.TemplateId);
-
-                notifyEquipData.EquipDataList.Add(addRet.Equip);
-                fashionSync.FashionList.Add(addRet.Fashion);
-                notifyCharacterData.CharacterDataList.Add(addRet.Character);
-                session.SendPush(notifyEquipData);
-                session.SendPush(fashionSync);
-                session.SendPush(notifyCharacterData);
+                RewardHandler.GiveRewards([ new Reward() { Id = request.TemplateId, Type = RewardType.Character } ], session);
             }
             catch (ServerCodeException ex)
             {

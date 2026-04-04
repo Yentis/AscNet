@@ -23,8 +23,10 @@ namespace AscNet.Common.Database
             Stage stage = new()
             {
                 Uid = uid,
-                Stages = new()
+                Stages = new(),
+                Course = new(),
             };
+
             foreach (var guideFight in TableReaderV2.Parse<GuideFightTable>())
             {
                 stage.AddStage(new StageDatum()
@@ -59,6 +61,17 @@ namespace AscNet.Common.Database
                 Stages.Add(stageData.StageId, stageData);
         }
 
+        public bool AddCourse(uint stageId)
+        {
+            if (Course.Contains(stageId))
+            {
+                return false;
+            }
+
+            Course.Add(stageId);
+            return true;
+        }
+
         public void Save()
         {
             collection.ReplaceOne(Builders<Stage>.Filter.Eq(x => x.Id, Id), this);
@@ -75,7 +88,9 @@ namespace AscNet.Common.Database
         [BsonRequired]
         [BsonDictionaryOptions(DictionaryRepresentation.ArrayOfDocuments)]
         public Dictionary<long, StageDatum> Stages { get; set; }
-        
+
+        // List of claimed StageIds
+        [BsonElement("course")]
+        public List<uint> Course { get; set; } = new();
     }
 }
-

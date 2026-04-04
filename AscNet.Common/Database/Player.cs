@@ -68,7 +68,8 @@ namespace AscNet.Common.Database
                         },
                         TeamName = null
                     }}
-                }
+                },
+                FubenMainLineData = new(),
             };
             player.AddHead(9000001);
             player.AddHead(9000002);
@@ -87,6 +88,17 @@ namespace AscNet.Common.Database
                 LeftCount = 1,
                 BeginTime = DateTimeOffset.Now.ToUnixTimeSeconds()
             });
+        }
+
+        public bool AddTreasure(int id)
+        {
+            if (FubenMainLineData.TreasureData.Contains(id))
+            {
+                return false;
+            }
+
+            FubenMainLineData.TreasureData.Add(id);
+            return true;
         }
 
         public void Save()
@@ -119,5 +131,8 @@ namespace AscNet.Common.Database
         [BsonRequired]
         [BsonDictionaryOptions(DictionaryRepresentation.ArrayOfDocuments)]
         public Dictionary<int, TeamGroupDatum> TeamGroups { get; set; }
+
+        [BsonElement("fuben_main_line_data")]
+        public FubenMainLineData FubenMainLineData { get; set; } = new();
     }
 }
