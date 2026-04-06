@@ -3,8 +3,7 @@ using AscNet.Common.Database;
 using AscNet.Common.MsgPack;
 using AscNet.Common.Util;
 using AscNet.GameServer.Handlers.Drops;
-using AscNet.Table.V2.share.character;
-using AscNet.Table.V2.share.item;
+using AscNet.Table.V2.share.exhibition;
 using AscNet.Table.V2.share.reward;
 
 namespace AscNet.GameServer.Handlers
@@ -34,36 +33,55 @@ namespace AscNet.GameServer.Handlers
             };
         }
 
-        public static List<RewardGoods> GiveRewards(IEnumerable<RewardGoodsTable> rewardGoods, Session session)
+        public static IEnumerable<RewardGoods> GetRewards(int rewardId, Session session)
         {
-            List<RewardGoods> rewardGoodsList = [];
+            TableReaderV2.RewardTableDict.TryGetValue(rewardId, out var reward);
+            if (reward == null) return [];
+
+            var rewardGoods = reward.SubIds.Select(x =>
+            {
+                TableReaderV2.RewardGoodsTableDict.TryGetValue(x, out var rewardGood);
+                return rewardGood;
+            }).OfType<RewardGoodsTable>();
+
+            return GetRewards(rewardGoods, session);
+        }
+
+        public static IEnumerable<RewardGoods> GetRewards(IEnumerable<RewardGoodsTable> rewardGoods, Session session)
+        {
+            return rewardGoods
+                .Select(x =>
+                {
+                    var rewardType = GetRewardType(x);
+                    if (rewardType == null)
+                    {
+                        session.log.Error($"Could not get reward type for template id {x.TemplateId} or id {x.Id}");
+                        return null;
+                    }
+
+                    return new RewardGoods()
+                    {
+                        Id = x.Id,
+                        TemplateId = x.TemplateId,
+                        Count = x.Count,
+                        RewardType = (int)rewardType,
+                    };
+                }).OfType<RewardGoods>();
+        }
+
+        public static void GiveRewards(IEnumerable<RewardGoods> rewardGoods, Session session)
+        {
             var rewards = rewardGoods.Select(x =>
             {
-                var rewardType = GetRewardType(x);
-                if (rewardType == null)
-                {
-                    session.log.Error($"Could not get reward type for template id {x.TemplateId} or id {x.Id}");
-                    return null;
-                }
-
-                rewardGoodsList.Add(new()
-                {
-                    Id = x.Id,
-                    TemplateId = x.TemplateId,
-                    Count = x.Count,
-                    RewardType = (int)rewardType,
-                });
-
                 return new Reward()
                 {
                     Id = x.TemplateId,
                     Count = x.Count,
-                    Type = (RewardType)rewardType,
+                    Type = (RewardType)x.RewardType,
                 };
-            }).OfType<Reward>();
+            });
 
             GiveRewards(rewards, session);
-            return rewardGoodsList;
         }
 
         public static void GiveRewards(IEnumerable<Reward> rewards, Session session)
@@ -129,11 +147,12 @@ namespace AscNet.GameServer.Handlers
             List<CharacterData> characterDataList,
             List<FashionList> fashionList,
             List<EquipData> equipDataList
-        ) {
+        )
+        {
             switch (reward.Type)
             {
                 case RewardType.Item:
-                    var itemData = TableReaderV2.Parse<ItemTable>().Find(x => x.Id == reward.Id);
+                    TableReaderV2.ItemTableDict.TryGetValue(reward.Id, out var itemData);
                     if (itemData is not null)
                     {
                         // Custom handler for some items that aren't meant to be in the inventory.
@@ -155,7 +174,7 @@ namespace AscNet.GameServer.Handlers
                 case RewardType.Character:
                     if (session.character.Characters.Any(x => x.Id == reward.Id))
                     {
-                        var characterData = TableReaderV2.Parse<CharacterTable>().Find(x => x.Id == reward.Id);
+                        TableReaderV2.CharacterTableDict.TryGetValue(reward.Id, out var characterData);
                         if (characterData == null) return [];
 
                         var decomposeCount = Character.GetMinCharacterFragment(reward.Id)?.DecomposeCount ?? 18;
@@ -167,7 +186,17 @@ namespace AscNet.GameServer.Handlers
                         }];
                     }
 
+
                     var characterRet = session.character.AddCharacter((uint)reward.Id, level: reward.Level);
+                    var exhibitionRewardId = TableReaderV2.Parse<ExhibitionRewardTable>().Find(x => x.CharacterId == reward.Id && x.LevelId == 1)?.Id;
+                    if (exhibitionRewardId is int id)
+                    {
+                        if (session.player.AddGatherReward(id))
+                        {
+                            session.SendPush(new NotifyGatherReward() { Id = id });
+                        }
+                    }
+
                     characterDataList.Add(characterRet.Character);
                     fashionList.Add(characterRet.Fashion);
                     equipDataList.Add(characterRet.Equip);
@@ -177,34 +206,21 @@ namespace AscNet.GameServer.Handlers
                     equipDataList.Add(session.character.AddEquip((uint)reward.Id, level: reward.Level));
                     break;
                 case RewardType.Fashion:
-                    break;
                 case RewardType.BaseEquip:
-                    break;
                 case RewardType.Furniture:
-                    break;
                 case RewardType.HeadPortrait:
-                    break;
                 case RewardType.DormCharacter:
-                    break;
                 case RewardType.ChatEmoji:
-                    break;
                 case RewardType.WeaponFashion:
-                    break;
                 case RewardType.Collection:
-                    break;
                 case RewardType.Background:
-                    break;
                 case RewardType.Pokemon:
-                    break;
                 case RewardType.Partner:
-                    break;
                 case RewardType.Nameplate:
-                    break;
                 case RewardType.RankScore:
-                    break;
                 case RewardType.Medal:
-                    break;
                 case RewardType.DrawTicket:
+                    session.log.Warn($"Unimplemented reward requested: {reward.Type} - id: {reward.Id}");
                     break;
             }
 

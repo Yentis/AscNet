@@ -1,13 +1,12 @@
-﻿using MongoDB.Bson;
+﻿using AscNet.Common.MsgPack;
+using AscNet.Common.Util;
+using AscNet.Table.V2.share.character.quality;
+using AscNet.Table.V2.share.character.skill;
+using AscNet.Table.V2.share.equip;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
-using AscNet.Table.V2.share.character;
-using AscNet.Table.V2.share.character.skill;
-using AscNet.Common.MsgPack;
-using AscNet.Common.Util;
 using Newtonsoft.Json;
-using AscNet.Table.V2.share.equip;
-using AscNet.Table.V2.share.character.quality;
 
 namespace AscNet.Common.Database
 {
@@ -74,10 +73,10 @@ namespace AscNet.Common.Database
         public AddCharacterRet AddCharacter(uint id, int level = 1)
         {
             AddCharacterRet ret = new();
-            CharacterTable? character = TableReaderV2.Parse<CharacterTable>().Find(x => x.Id == id);
+            TableReaderV2.CharacterTableDict.TryGetValue((int)id, out var character);
             CharacterSkillTable? characterSkill = TableReaderV2.Parse<CharacterSkillTable>().Find(x => x.CharacterId == id);
             CharacterQualityTable? characterQuality = TableReaderV2.Parse<CharacterQualityTable>().OrderBy(x => x.Quality).FirstOrDefault(x => x.CharacterId == id);
-            
+
             if (character is null || characterSkill is null || characterQuality is null)
             {
                 // CharacterManagerGetCharacterDataNotFound
@@ -88,7 +87,7 @@ namespace AscNet.Common.Database
                 // CharacterManagerCreateCharacterAlreadyExist
                 throw new ServerCodeException("Character already obtained!", 20009022);
             }
-            
+
             CharacterData characterData = new()
             {
                 Id = (uint)character.Id,
@@ -135,12 +134,12 @@ namespace AscNet.Common.Database
 
         public CharacterData? AddCharacterExp(int characterId, int exp, int maxLvl = 0)
         {
-            var characterData = TableReaderV2.Parse<CharacterTable>().FirstOrDefault(x => x.Id == characterId);
+            TableReaderV2.CharacterTableDict.TryGetValue(characterId, out var characterData);
             var character = Characters.FirstOrDefault(x => x.Id == characterId);
 
             if (character is not null && characterData is not null)
             {
-                levelCheck:
+            levelCheck:
                 CharacterLevelUpTemplate? levelUpTemplate = characterLevelUpTemplates.FirstOrDefault(x => x.Level == character.Level && x.Type == characterData.Type);
                 if (levelUpTemplate is not null)
                 {
@@ -217,7 +216,7 @@ namespace AscNet.Common.Database
                 CreateTime = (uint)DateTimeOffset.Now.ToUnixTimeSeconds(),
                 IsRecycle = false
             };
-            
+
             Equips.Add(equipData);
             return equipData;
         }
@@ -225,10 +224,12 @@ namespace AscNet.Common.Database
         public EquipData? AddEquipExp(int equipId, int exp)
         {
             var equip = Equips.FirstOrDefault(x => x.Id == equipId);
-            EquipTable? equipData = TableReaderV2.Parse<EquipTable>().FirstOrDefault(x => x.Id == equip?.TemplateId);
+            if (equip == null) return null;
+
+            TableReaderV2.EquipTableDict.TryGetValue((int)equip.TemplateId, out var equipData);
             EquipBreakThroughTable? equipBreakThroughTable = TableReaderV2.Parse<EquipBreakThroughTable>().FirstOrDefault(x => x.EquipId == equip?.TemplateId && x.Times == equip?.Breakthrough);
 
-            if (equip is not null && equipData is not null && equipBreakThroughTable is not null)
+            if (equipData is not null && equipBreakThroughTable is not null)
             {
                 EquipLevelUpTemplate? levelUpTemplate = equipLevelUpTemplates.FirstOrDefault(x => x.TemplateId == equipBreakThroughTable.LevelUpTemplateId && x.Level == equip.Level);
 
@@ -270,11 +271,11 @@ namespace AscNet.Common.Database
         [BsonElement("characters")]
         [BsonRequired]
         public List<CharacterData> Characters { get; set; }
-        
+
         [BsonElement("equips")]
         [BsonRequired]
         public List<EquipData> Equips { get; set; }
-        
+
         [BsonElement("fashions")]
         [BsonRequired]
         public List<FashionList> Fashions { get; set; }

@@ -1,16 +1,22 @@
-using AscNet.Logging;
 using System.Reflection;
+using AscNet.Logging;
+using AscNet.Table.V2.share.character;
+using AscNet.Table.V2.share.config;
+using AscNet.Table.V2.share.equip;
+using AscNet.Table.V2.share.item;
+using AscNet.Table.V2.share.reward;
+using AscNet.Table.V2.share.task;
 
 namespace AscNet.Common.Util
 {
-    #pragma warning disable CS8618, CS8602 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+#pragma warning disable CS8618, CS8602 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public abstract class TableReader<TSelf, TScheme>
     {
         public List<TScheme> All { get; set; }
         protected abstract string FilePath { get; }
         private readonly Logger c = new(typeof(TableReader<TSelf, TScheme>), nameof(TableReader<TSelf, TScheme>), LogLevel.DEBUG, LogLevel.DEBUG);
         private static TSelf _instance;
-        
+
         public static TSelf Instance
         {
             get
@@ -26,7 +32,7 @@ namespace AscNet.Common.Util
                 return _instance;
             }
         }
-        
+
         public abstract void Load();
     }
 
@@ -37,8 +43,29 @@ namespace AscNet.Common.Util
 
     public static class TableReaderV2
     {
-        private static readonly Dictionary<Type, object> cache = new();
+        public static readonly Dictionary<string, ConfigTable> ConfigTableDict;
+        public static readonly Dictionary<int, EquipTable> EquipTableDict;
+        public static readonly Dictionary<int, RewardTable> RewardTableDict;
+        public static readonly Dictionary<int, RewardGoodsTable> RewardGoodsTableDict;
+        public static readonly Dictionary<int, ItemTable> ItemTableDict;
+        public static readonly Dictionary<int, CharacterTable> CharacterTableDict;
+        public static readonly Dictionary<int, TaskTable> TaskTableDict;
+        public static readonly Dictionary<int, ConditionTable> ConditionTableDict;
+
+        private static readonly Dictionary<Type, object> cache = [];
         private static readonly Logger c = new(typeof(TableReaderV2), nameof(TableReaderV2), LogLevel.DEBUG, LogLevel.DEBUG);
+
+        static TableReaderV2()
+        {
+            ConfigTableDict = Parse<ConfigTable>().ToDictionary(x => x.Key);
+            EquipTableDict = Parse<EquipTable>().ToDictionary(x => x.Id);
+            RewardTableDict = Parse<RewardTable>().ToDictionary(x => x.Id);
+            RewardGoodsTableDict = Parse<RewardGoodsTable>().ToDictionary(x => x.Id);
+            ItemTableDict = Parse<ItemTable>().ToDictionary(x => x.Id);
+            CharacterTableDict = Parse<CharacterTable>().ToDictionary(x => x.Id);
+            TaskTableDict = Parse<TaskTable>().ToDictionary(x => x.Id);
+            ConditionTableDict = Parse<ConditionTable>().ToDictionary(x => x.Id);
+        }
 
         public static List<T> Parse<T>() where T : ITable
         {

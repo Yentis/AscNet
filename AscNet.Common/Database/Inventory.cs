@@ -1,6 +1,5 @@
 ﻿using AscNet.Common.MsgPack;
 using AscNet.Common.Util;
-using AscNet.Table.V2.share.item;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Driver;
@@ -8,7 +7,7 @@ using Newtonsoft.Json;
 
 namespace AscNet.Common.Database
 {
-    #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public class Inventory
     {
         #region CommonItems
@@ -74,7 +73,7 @@ namespace AscNet.Common.Database
         public Item Do(int itemId, int amount)
         {
             Item? item = Items.FirstOrDefault(x => x.Id == itemId);
-            ItemTable? itemTable = TableReaderV2.Parse<ItemTable>().Find(x => x.Id == itemId);
+            TableReaderV2.ItemTableDict.TryGetValue(itemId, out var itemTable);
 
             if (item is not null && itemTable is not null)
             {

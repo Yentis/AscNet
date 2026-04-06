@@ -1,6 +1,5 @@
 ﻿using AscNet.Common.Util;
 using AscNet.SDKServer.Models;
-using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 
 namespace AscNet.SDKServer.Controllers
@@ -16,28 +15,28 @@ namespace AscNet.SDKServer.Controllers
 
         public static void Register(WebApplication app)
         {
-            app.MapGet("/prod/client/config/{package}/{version}/standalone/config.tab", (HttpContext ctx) =>
+            app.MapGet("/{variant}/client/config/{package}/{version}/standalone/config.tab", (string variant, string package, string version, HttpContext ctx) =>
             {
                 List<RemoteConfig> remoteConfigs = new();
-                ServerVersionConfig versionConfig = versions.GetValueOrDefault((string)ctx.Request.RouteValues["version"]!) ?? versions.First().Value;
+                ServerVersionConfig versionConfig = versions.GetValueOrDefault(version) ?? versions.First().Value;
 
                 foreach (var property in typeof(ServerVersionConfig).GetProperties())
                     remoteConfigs.AddConfig(property.Name, (string)property.GetValue(versionConfig)!);
 
-                remoteConfigs.AddConfig("ApplicationVersion", (string)ctx.Request.RouteValues["version"]!);
+                remoteConfigs.AddConfig("ApplicationVersion", version);
                 remoteConfigs.AddConfig("Debug", true);
                 remoteConfigs.AddConfig("External", true);
                 remoteConfigs.AddConfig("PayCallbackUrl", "empty");
-                switch ((string?)ctx.Request.RouteValues["package"])
+                switch (package)
                 {
                     case "com.kurogame.haru.kuro":
-                        remoteConfigs.AddConfig("PrimaryCdns", "http://prod-zspnsalicdn.kurogame.com/prod");
-                        remoteConfigs.AddConfig("SecondaryCdns", "http://prod-zspnstxcdn.kurogame.com/prod");
+                        remoteConfigs.AddConfig("PrimaryCdns", $"http://{variant}-zspnsalicdn.kurogame.com/{variant}");
+                        remoteConfigs.AddConfig("SecondaryCdns", $"http://{variant}-zspnstxcdn.kurogame.com/{variant}");
                         remoteConfigs.AddConfig("Channel", 2);
                         break;
                     default:
-                        remoteConfigs.AddConfig("PrimaryCdns", "http://prod-encdn-akamai.kurogame.net/prod|http://prod-encdn-aliyun.kurogame.net/prod");
-                        remoteConfigs.AddConfig("SecondaryCdns", "http://prod-encdn-aliyun.kurogame.net/prod");
+                        remoteConfigs.AddConfig("PrimaryCdns", $"http://{variant}-encdn-akamai.kurogame.net/{variant}|http://{variant}-encdn-aliyun.kurogame.net/{variant}");
+                        remoteConfigs.AddConfig("SecondaryCdns", $"http://{variant}-encdn-aliyun.kurogame.net/{variant}");
                         remoteConfigs.AddConfig("Channel", 1);
                         break;
                 }
@@ -63,7 +62,7 @@ namespace AscNet.SDKServer.Controllers
                 return serializedObject;
             });
 
-            app.MapGet("/prod/client/notice/config/{package}/{version}/LoginNotice.json", (HttpContext ctx) =>
+            app.MapGet("/{variant}/client/notice/config/{package}/{version}/LoginNotice.json", (HttpContext ctx) =>
             {
                 LoginNotice notice = new()
                 {
@@ -80,7 +79,7 @@ namespace AscNet.SDKServer.Controllers
                 return serializedObject;
             });
 
-            app.MapGet("/prod/client/notice/config/{package}/{version}/ScrollTextNotice.json", (HttpContext ctx) =>
+            app.MapGet("/{variant}/client/notice/config/{package}/{version}/ScrollTextNotice.json", (HttpContext ctx) =>
             {
                 ScrollTextNotice notice = new()
                 {
@@ -100,7 +99,7 @@ namespace AscNet.SDKServer.Controllers
                 return serializedObject;
             });
 
-            app.MapGet("/prod/client/notice/config/{package}/{version}/ScrollPicNotice.json", (HttpContext ctx) =>
+            app.MapGet("/{variant}/client/notice/config/{package}/{version}/ScrollPicNotice.json", (HttpContext ctx) =>
             {
                 ScrollPicNotice notice = new()
                 {
@@ -131,7 +130,7 @@ namespace AscNet.SDKServer.Controllers
                 return serializedObject;
             });
 
-            app.MapGet("/prod/client/notice/config/{package}/{version}/GameNotice.json", (HttpContext ctx) =>
+            app.MapGet("/{variant}/client/notice/config/{package}/{version}/GameNotice.json", (HttpContext ctx) =>
             {
                 List<GameNotice> notices = new();
 

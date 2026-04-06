@@ -235,6 +235,7 @@ namespace AscNet.Common.MsgPack
         public long DailyReceiveGiftCount { get; set; }
         public long DailyActivenessRewardStatus { get; set; }
         public long WeeklyActivenessRewardStatus { get; set; }
+        public int NewPlayerTaskActiveDay { get; set; }
         public List<long> Marks { get; set; } = new();
         public List<long> GuideData { get; set; } = new();
         public List<long> Communications { get; set; } = new();
@@ -448,6 +449,22 @@ namespace AscNet.Common.MsgPack
         public List<dynamic> BlockData { get; set; } = new();
     }
 
+    [MessagePackObject(true)]
+    public class TaskSchedule
+    {
+        public UInt32 Id { get; set; }
+        public Int32 Value { get; set; }
+    }
+
+    [MessagePackObject(true)]
+    public class TaskItem
+    {
+        public UInt32 Id { get; set; }
+        public List<TaskSchedule> Schedule { get; set; } = new();
+        public Int32 State { get; set; }
+        public UInt32 RecordTime { get; set; }
+        public Int32 ActivityId { get; set; }
+    }
 
     [global::MessagePack.MessagePackObject(true)]
     public class NotifyTaskData
@@ -455,24 +472,7 @@ namespace AscNet.Common.MsgPack
         [global::MessagePack.MessagePackObject(true)]
         public class NotifyTaskDataTaskData
         {
-            [global::MessagePack.MessagePackObject(true)]
-            public class NotifyTaskDataTaskDataTask
-            {
-                public UInt32 Id { get; set; }
-                [global::MessagePack.MessagePackObject(true)]
-                public class NotifyTaskDataTaskDataTaskSchedule
-                {
-                    public UInt32 Id { get; set; }
-                    public Int32 Value { get; set; }
-                }
-
-                public List<NotifyTaskDataTaskDataTaskSchedule> Schedule { get; set; } = new();
-                public Int32 State { get; set; }
-                public UInt32 RecordTime { get; set; }
-                public Int32 ActivityId { get; set; }
-            }
-
-            public List<NotifyTaskDataTaskDataTask> Tasks { get; set; } = new();
+            public List<TaskItem> Tasks { get; set; } = new();
             public List<UInt32> Course { get; set; } = new();
             public List<Int32> FinishedTasks { get; set; } = new();
             public List<Int32> NewPlayerRewardRecord { get; set; } = new();
@@ -514,24 +514,7 @@ namespace AscNet.Common.MsgPack
         [global::MessagePack.MessagePackObject(true)]
         public class NotifyTaskTasks
         {
-            [global::MessagePack.MessagePackObject(true)]
-            public class NotifyTaskTasksTask
-            {
-                public UInt32 Id { get; set; }
-                [global::MessagePack.MessagePackObject(true)]
-                public class NotifyTaskTasksTaskSchedule
-                {
-                    public UInt32 Id { get; set; }
-                    public Int32 Value { get; set; }
-                }
-
-                public List<NotifyTaskTasksTaskSchedule> Schedule { get; set; } = new();
-                public Int32 State { get; set; }
-                public UInt32 RecordTime { get; set; }
-                public Int32 ActivityId { get; set; }
-            }
-
-            public List<NotifyTaskTasksTask> Tasks { get; set; } = new();
+            public List<TaskItem> Tasks { get; set; } = new();
         }
 
         public NotifyTaskTasks Tasks { get; set; }

@@ -1,15 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
-using AscNet.Common;
-using AscNet.Common.MsgPack;
+﻿using AscNet.Common.MsgPack;
 using AscNet.Common.Util;
-using AscNet.Table.V2.share.exhibition;
 using AscNet.Table.V2.share.fuben.mainline;
-using AscNet.Table.V2.share.reward;
 using MessagePack;
 
 namespace AscNet.GameServer.Handlers
@@ -38,29 +29,20 @@ namespace AscNet.GameServer.Handlers
         {
             var request = MessagePackSerializer.Deserialize<TreasureRewardRequest>(packet.Content);
             var treasure = TableReaderV2.Parse<TreasureTable>().Find(x => x.TreasureId == request.TreasureId);
-            var rewardId = treasure?.RewardId.ToString();
+            var rewardId = treasure?.RewardId;
             if (rewardId == null)
             {
                 session.SendResponse(new TreasureRewardResponse() { Code = 1 }, packet.Id);
                 return;
             }
 
-            var rewardGoods = TableReaderV2.Parse<RewardGoodsTable>().Where(x =>
-            {
-                var id = x.Id.ToString();
-                return id.StartsWith(rewardId) && id.Length > rewardId.Length;
-            });
-
             var success = session.player.AddTreasure(request.TreasureId);
-            if (!success)
-            {
-                session.SendResponse(new TreasureRewardResponse() { Code = 1 }, packet.Id);
-                return;
-            }
+            var rewards = RewardHandler.GetRewards((int)rewardId, session);
+            if (success) RewardHandler.GiveRewards(rewards, session);
 
             TreasureRewardResponse response = new()
             {
-                RewardGoodsList = RewardHandler.GiveRewards(rewardGoods, session)
+                RewardGoodsList = [.. rewards]
             };
 
             session.SendResponse(response, packet.Id);

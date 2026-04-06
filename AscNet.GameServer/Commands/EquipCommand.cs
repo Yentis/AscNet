@@ -1,7 +1,6 @@
-﻿using AscNet.Common.Util;
-using AscNet.Common;
-using AscNet.Table.V2.share.equip;
+﻿using AscNet.Common;
 using AscNet.Common.MsgPack;
+using AscNet.Common.Util;
 
 namespace AscNet.GameServer.Commands
 {
@@ -29,7 +28,7 @@ namespace AscNet.GameServer.Commands
                 case "add":
                     if (Target == "all")
                     {
-                        foreach (var equip in TableReaderV2.Parse<EquipTable>())
+                        foreach (var equip in TableReaderV2.EquipTableDict.Values)
                         {
                             var newEquip = session.character.AddEquip((uint)equip.Id);
                             if (newEquip is not null)
@@ -38,7 +37,12 @@ namespace AscNet.GameServer.Commands
                     }
                     else
                     {
-                        var equip = TableReaderV2.Parse<EquipTable>().Find(x => x.Id == Miscs.ParseIntOr(Target)) ?? throw new ServerCodeException("Equip by id not found", 20021001);
+                        TableReaderV2.EquipTableDict.TryGetValue(Miscs.ParseIntOr(Target), out var equip);
+                        if (equip == null)
+                        {
+                            throw new ServerCodeException("Equip by id not found", 20021001);
+                        }
+
                         var newEquip = session.character.AddEquip((uint)equip.Id);
                         if (newEquip is not null)
                             notifyEquipData.EquipDataList.Add(newEquip);

@@ -1,6 +1,5 @@
 ﻿using System.Buffers.Binary;
 using System.Net.Sockets;
-using System.Reflection.Emit;
 using AscNet.Common;
 using AscNet.Common.Database;
 using AscNet.Common.Util;
@@ -14,6 +13,8 @@ namespace AscNet.GameServer
 {
     public class Session
     {
+        public event EventHandler<object?>? Events;
+
         public readonly string id;
         public readonly TcpClient client;
         public Player player = default!;
@@ -22,6 +23,7 @@ namespace AscNet.GameServer
         public Fight? fight;
         public Inventory inventory = default!;
         public readonly Logger log;
+
         private long lastPacketTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         private ushort packetNo = 0;
         private readonly MessagePackSerializerOptions lz4Options = MessagePackSerializerOptions.Standard.WithCompression(MessagePackCompression.Lz4Block);
@@ -150,6 +152,7 @@ namespace AscNet.GameServer
                 {
                     break;
                 }
+
                 await Task.Delay(10);
                 // 10 sec timeout
                 if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - lastPacketTime > 10000)
@@ -173,6 +176,8 @@ namespace AscNet.GameServer
                 Content = MessagePackSerializer.Serialize(packet)
             });
             log.Info($"{packet.Name}{(Common.Common.config.VerboseLevel >= VerboseLevel.Debug ? (", " + JsonConvert.SerializeObject(push)) : "")}");
+
+            Events?.Invoke(this, push);
         }
 
         public void SendPush(string name, byte[] push)

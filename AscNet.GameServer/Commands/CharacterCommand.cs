@@ -1,8 +1,5 @@
-﻿using AscNet.Common.Database;
-using AscNet.Common.Util;
-using AscNet.Common.MsgPack;
+﻿using AscNet.Common.Util;
 using AscNet.GameServer.Handlers;
-using AscNet.Table.V2.share.character;
 
 namespace AscNet.GameServer.Commands
 {
@@ -28,8 +25,7 @@ namespace AscNet.GameServer.Commands
                 case "add":
                     if (Target == "all")
                     {
-                        var rewards = TableReaderV2
-                            .Parse<CharacterTable>()
+                        var rewards = TableReaderV2.CharacterTableDict.Values
                             .Where(x => !session.character.Characters.Any(y => y.Id == x.Id))
                             .Select(x => new Reward { Id = x.Id, Type = RewardType.Character });
 
@@ -37,7 +33,7 @@ namespace AscNet.GameServer.Commands
                     }
                     else
                     {
-                        RewardHandler.GiveRewards([ new Reward() { Id = id, Type = RewardType.Character } ], session);
+                        RewardHandler.GiveRewards([new Reward() { Id = id, Type = RewardType.Character }], session);
                     }
                     break;
                 default:

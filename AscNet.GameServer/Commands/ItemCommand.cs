@@ -1,6 +1,5 @@
 ﻿using AscNet.Common.MsgPack;
 using AscNet.Common.Util;
-using AscNet.Table.V2.share.item;
 
 namespace AscNet.GameServer.Commands
 {
@@ -27,13 +26,13 @@ namespace AscNet.GameServer.Commands
                 case "add":
                     if (Target == "all")
                     {
-                        session.inventory.Items = TableReaderV2.Parse<Table.V2.share.item.ItemTable>().Select(x => new Item()
+                        session.inventory.Items = [.. TableReaderV2.ItemTableDict.Values.Select(x => new Item()
                         {
                             Id = x.Id,
                             Count = x.MaxCount ?? 999_999_999,
                             RefreshTime = DateTimeOffset.Now.ToUnixTimeSeconds(),
                             CreateTime = DateTimeOffset.Now.ToUnixTimeSeconds()
-                        }).ToList();
+                        })];
 
                         NotifyItemDataList notifyItemData = new()
                         {
@@ -48,7 +47,7 @@ namespace AscNet.GameServer.Commands
                             throw new ArgumentException("Invalid Target / Amount!");
                         }
 
-                        if (!TableReaderV2.Parse<ItemTable>().Any(x => x.Id == Miscs.ParseIntOr(Target)))
+                        if (!TableReaderV2.ItemTableDict.ContainsKey(Miscs.ParseIntOr(Target)))
                         {
                             throw new ArgumentException("Invalid Target item id!");
                         }

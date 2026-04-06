@@ -2,12 +2,10 @@
 using AscNet.Common.Database;
 using AscNet.Common.MsgPack;
 using AscNet.Common.Util;
-using AscNet.Table.V2.share.character;
 using AscNet.Table.V2.share.character.enhanceskill;
 using AscNet.Table.V2.share.character.grade;
 using AscNet.Table.V2.share.character.quality;
 using AscNet.Table.V2.share.character.skill;
-using AscNet.Table.V2.share.item;
 using MessagePack;
 using MongoDB.Driver.Linq;
 
@@ -127,7 +125,7 @@ namespace AscNet.GameServer.Handlers
         public static void CharacterLevelUpRequestHandler(Session session, Packet.Request packet)
         {
             CharacterLevelUpRequest request = packet.Deserialize<CharacterLevelUpRequest>();
-            CharacterTable? characterData = TableReaderV2.Parse<CharacterTable>().FirstOrDefault(x => x.Id == request.TemplateId);
+            TableReaderV2.CharacterTableDict.TryGetValue((int)request.TemplateId, out var characterData);
 
             if (characterData is null || !session.character.Characters.Any(x => x.Id == characterData.Id))
             {
@@ -140,7 +138,7 @@ namespace AscNet.GameServer.Handlers
             int totalExp = 0;
             foreach (var item in request.UseItems)
             {
-                ItemTable? itemTable = TableReaderV2.Parse<ItemTable>().FirstOrDefault(x => x.Id == item.Key);
+                TableReaderV2.ItemTableDict.TryGetValue(item.Key, out var itemTable);
                 if (itemTable is not null)
                 {
                     totalExp += itemTable.GetCharacterExp(characterData.Type) * item.Value;
@@ -199,7 +197,7 @@ namespace AscNet.GameServer.Handlers
         {
             CharacterActivateStarRequest req = packet.Deserialize<CharacterActivateStarRequest>();
             var character = session.character.Characters.Find(c => c.Id == req.TemplateId);
-            var characterData = TableReaderV2.Parse<CharacterTable>().Find(x => x.Id == req.TemplateId);
+            TableReaderV2.CharacterTableDict.TryGetValue(req.TemplateId, out var characterData);
             var characterQualityFragment = TableReaderV2.Parse<CharacterQualityFragmentTable>().Find(x => x.Type == characterData?.Type && x.Quality == character?.Quality);
 
             try
@@ -255,7 +253,7 @@ namespace AscNet.GameServer.Handlers
         {
             CharacterPromoteQualityRequest req = packet.Deserialize<CharacterPromoteQualityRequest>();
             var character = session.character.Characters.Find(c => c.Id == req.TemplateId);
-            var characterData = TableReaderV2.Parse<CharacterTable>().Find(x => x.Id == req.TemplateId);
+            TableReaderV2.CharacterTableDict.TryGetValue(req.TemplateId, out var characterData);
             var characterQualityFragment = TableReaderV2.Parse<CharacterQualityFragmentTable>().Find(x => x.Type == characterData?.Type && x.Quality == character?.Quality);
 
             try
@@ -433,7 +431,7 @@ namespace AscNet.GameServer.Handlers
         public static void CharacterExchangeRequestHandler(Session session, Packet.Request packet)
         {
             CharacterExchangeRequest request = packet.Deserialize<CharacterExchangeRequest>();
-            CharacterTable? characterData = TableReaderV2.Parse<CharacterTable>().FirstOrDefault(x => x.Id == request.TemplateId);
+            TableReaderV2.CharacterTableDict.TryGetValue(request.TemplateId, out var characterData);
 
             if (characterData is null)
             {
@@ -465,7 +463,7 @@ namespace AscNet.GameServer.Handlers
 
             try
             {
-                RewardHandler.GiveRewards([ new Reward() { Id = request.TemplateId, Type = RewardType.Character } ], session);
+                RewardHandler.GiveRewards([new Reward() { Id = request.TemplateId, Type = RewardType.Character }], session);
             }
             catch (ServerCodeException ex)
             {

@@ -197,6 +197,7 @@ namespace AscNet.GameServer.Handlers
         {
             ChangePlayerNameRequest request = MessagePackSerializer.Deserialize<ChangePlayerNameRequest>(packet.Content);
             session.player.PlayerData.Name = request.Name;
+            session.player.PlayerData.ChangeNameTime = DateTimeOffset.Now.ToUnixTimeSeconds();
 
             NotifyPlayerName notifyPlayerName = new() { Name = session.player.PlayerData.Name };
             session.SendPush(notifyPlayerName);
@@ -218,6 +219,12 @@ namespace AscNet.GameServer.Handlers
             ChangePlayerBirthdayRequest request = MessagePackSerializer.Deserialize<ChangePlayerBirthdayRequest>(packet.Content);
             session.player.PlayerData.Birthday = request;
 
+            NotifyBirthdayPlot notifyBirthdayPlot = new()
+            {
+                IsChange = 1
+            };
+
+            session.SendPush(notifyBirthdayPlot);
             session.SendResponse(new ChangePlayerBirthdayResponse(), packet.Id);
         }
 

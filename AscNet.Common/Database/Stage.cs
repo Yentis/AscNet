@@ -1,18 +1,20 @@
 using AscNet.Common.MsgPack;
 using AscNet.Common.Util;
+using AscNet.Table.V2.share.fuben.practice;
 using AscNet.Table.V2.share.guide;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization.Options;
 using MongoDB.Driver;
+using static AscNet.Common.MsgPack.NotifyPracticeData;
 
 namespace AscNet.Common.Database
 {
-    #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
     public class Stage
     {
         public static readonly IMongoCollection<Stage> collection = Common.db.GetCollection<Stage>("stages");
-        
+
         public static Stage FromUid(long uid)
         {
             return collection.AsQueryable().FirstOrDefault(x => x.Uid == uid) ?? Create(uid);
@@ -23,8 +25,8 @@ namespace AscNet.Common.Database
             Stage stage = new()
             {
                 Uid = uid,
-                Stages = new(),
-                Course = new(),
+                Stages = [],
+                Course = [],
             };
 
             foreach (var guideFight in TableReaderV2.Parse<GuideFightTable>())
@@ -55,10 +57,8 @@ namespace AscNet.Common.Database
 
         public void AddStage(StageDatum stageData)
         {
-            if (Stages.ContainsKey(stageData.StageId))
+            if (!Stages.TryAdd(stageData.StageId, stageData))
                 Stages[stageData.StageId] = stageData;
-            else
-                Stages.Add(stageData.StageId, stageData);
         }
 
         public bool AddCourse(uint stageId)
@@ -70,6 +70,21 @@ namespace AscNet.Common.Database
 
             Course.Add(stageId);
             return true;
+        }
+
+        public Dictionary<int, NotifyPracticeDataChapterInfo> GetPracticeChapterInfos()
+        {
+            return TableReaderV2.Parse<PracticeGroupTable>().Select(x =>
+            {
+                return new NotifyPracticeDataChapterInfo()
+                {
+                    Id = x.GroupId,
+                    FinishStages = [.. x.StageIds.Where(y => {
+                        Stages.TryGetValue(y, out var stageData);
+                        return stageData?.Passed == true;
+                    }).Select(y => (uint)y)],
+                };
+            }).ToDictionary(x => x.Id);
         }
 
         public void Save()
@@ -91,6 +106,6 @@ namespace AscNet.Common.Database
 
         // List of claimed StageIds
         [BsonElement("course")]
-        public List<uint> Course { get; set; } = new();
+        public List<uint> Course { get; set; } = [];
     }
 }

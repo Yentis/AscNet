@@ -4,7 +4,6 @@ using AscNet.Common.MsgPack;
 using AscNet.Common.Util;
 using AscNet.Table.V2.share.attrib;
 using AscNet.Table.V2.share.equip;
-using AscNet.Table.V2.share.item;
 using MessagePack;
 
 namespace AscNet.GameServer.Handlers
@@ -113,17 +112,45 @@ namespace AscNet.GameServer.Handlers
 
     internal class EquipModule
     {
+        private static int? GetEquipExp(EquipData equipData)
+        {
+            var equipBreakThrough = TableReaderV2.Parse<EquipBreakThroughTable>().FirstOrDefault(x => x.EquipId == equipData.TemplateId && x.Times == equipData.Breakthrough);
+            if (equipBreakThrough == null) return null;
+
+            var levelUpTemplate = Character.equipLevelUpTemplates.Find(x => x.TemplateId == equipBreakThrough.LevelUpTemplateId && x.Level == equipData.Level);
+            if (levelUpTemplate == null) return null;
+
+            TableReaderV2.ConfigTableDict.TryGetValue("EquipExpInheritPercent", out var config);
+            var success = Int32.TryParse(config?.Value, out var equipExpInheritPercent);
+            if (!success) return null;
+
+            var exp = equipData.Exp + levelUpTemplate.AllExp;
+            exp *= equipExpInheritPercent / 100;
+            exp += equipBreakThrough.Exp;
+
+            return exp;
+        }
+
+        private static int? GetEquipCost(EquipData equipData)
+        {
+            TableReaderV2.EquipTableDict.TryGetValue((int)equipData.TemplateId, out var equip);
+            if (equip == null) return null;
+
+            return TableReaderV2.Parse<EatEquipCostTable>().FirstOrDefault(x => x.Star == equip.Star && x.Site == equip.Site)?.UseMoney;
+        }
+
         [RequestPacketHandler("EquipLevelUpRequest")]
         public static void EquipLevelUpRequestHandler(Session session, Packet.Request packet)
         {
             EquipLevelUpRequest request = packet.Deserialize<EquipLevelUpRequest>();
-
             NotifyItemDataList notifyItemData = new();
+
             int totalExp = 0;
             int totalCost = 0;
+
             foreach (var item in request.UseItems ?? [])
             {
-                ItemTable? itemTable = TableReaderV2.Parse<ItemTable>().FirstOrDefault(x => x.Id == item.Key);
+                TableReaderV2.ItemTableDict.TryGetValue(item.Key, out var itemTable);
                 if (itemTable is not null)
                 {
                     var upgradeInfo = itemTable.GetEquipUpgradeInfo() * item.Value;
@@ -133,11 +160,21 @@ namespace AscNet.GameServer.Handlers
                 }
             }
 
-            // TODO: Handle equip enchantment with equip cost
-            /*foreach (var costEquipId in request.UseEquipIdList ?? [])
+            foreach (var costEquipId in request.UseEquipIdList ?? [])
             {
+                var equipData = session.character.Equips.FirstOrDefault(x => x.Id == costEquipId);
+                if (equipData == null) continue;
 
-            }*/
+                var exp = GetEquipExp(equipData);
+                var cost = GetEquipCost(equipData);
+
+                if (exp is not null && cost is not null)
+                {
+                    totalExp += (int)exp;
+                    totalCost += (int)cost;
+                    session.character.Equips.Remove(equipData);
+                }
+            }
 
             notifyItemData.ItemDataList.Add(session.inventory.Do(Inventory.Coin, totalCost * -1));
             session.SendPush(notifyItemData);
@@ -231,7 +268,12 @@ namespace AscNet.GameServer.Handlers
         {
             EquipPutOnRequest request = packet.Deserialize<EquipPutOnRequest>();
 
-            var prevEquip = session.character.Equips.Find(x => x.CharacterId == request.CharacterId && TableReaderV2.Parse<EquipTable>().Find(t => t.Id == x.TemplateId)?.Site == request.Site);
+            var prevEquip = session.character.Equips.Find(x =>
+            {
+                TableReaderV2.EquipTableDict.TryGetValue((int)x.TemplateId, out var equip);
+                return x.CharacterId == request.CharacterId && equip?.Site == request.Site;
+            });
+
             var toEquip = session.character.Equips.Find(x => x.Id == request.EquipId);
 
             if (prevEquip is not null && toEquip is not null)

@@ -1,8 +1,8 @@
-﻿using AscNet.Common.MsgPack;
+﻿using System.Reflection;
+using AscNet.Common.MsgPack;
 using AscNet.Common.Util;
 using AscNet.Logging;
 using AscNet.Table.V2.share.equip;
-using System.Reflection;
 
 namespace AscNet.GameServer.Handlers.Drops
 {
@@ -156,8 +156,8 @@ namespace AscNet.GameServer.Handlers.Drops
 
         public static IEnumerable<DropHandlerRet> RandomMemoryDrop(Session session, int count, int quality)
         {
-            List<DropHandlerRet> rets = new();
-            EquipTable[] memoryPool = TableReaderV2.Parse<EquipTable>().Where(x => x.Type == 0 && x.Quality == quality).ToArray();
+            List<DropHandlerRet> rets = [];
+            EquipTable[] memoryPool = [.. TableReaderV2.EquipTableDict.Values.Where(x => x.Type == 0 && x.Quality == quality)];
 
             if (GetProgressiveChance((int)session.player.PlayerData.Level, quality))
             {
@@ -178,7 +178,7 @@ namespace AscNet.GameServer.Handlers.Drops
 
             return rets;
         }
-        
+
         #endregion
 
         /// <summary>
@@ -248,9 +248,9 @@ namespace AscNet.GameServer.Handlers.Drops
     public struct DropHandlerRet
     {
         public int TemplateId { get; set; }
-        public int Count { get; set;}
-        public int Level { get; set;}
-        public int Quality { get; set;}
-        public RewardType Type { get; set;}
+        public int Count { get; set; }
+        public int Level { get; set; }
+        public int Quality { get; set; }
+        public RewardType Type { get; set; }
     }
 }

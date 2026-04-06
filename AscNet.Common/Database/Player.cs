@@ -1,8 +1,8 @@
-﻿using MongoDB.Bson.Serialization.Attributes;
+﻿using AscNet.Common.MsgPack;
 using MongoDB.Bson;
-using MongoDB.Driver;
-using AscNet.Common.MsgPack;
+using MongoDB.Bson.Serialization.Attributes;
 using MongoDB.Bson.Serialization.Options;
+using MongoDB.Driver;
 
 namespace AscNet.Common.Database
 {
@@ -49,7 +49,8 @@ namespace AscNet.Common.Database
                     },
                     CreateTime = DateTimeOffset.Now.ToUnixTimeSeconds(),
                     LastLoginTime = DateTimeOffset.Now.ToUnixTimeSeconds(),
-                    Flags = 1
+                    Flags = 1,
+                    NewPlayerTaskActiveDay = 0
                 },
                 HeadPortraits = new(),
                 TeamGroups = new()
@@ -70,11 +71,14 @@ namespace AscNet.Common.Database
                     }}
                 },
                 FubenMainLineData = new(),
+                // Lucia base awaken
+                GatherRewards = [5],
+                Tasks = [],
             };
             player.AddHead(9000001);
             player.AddHead(9000002);
             player.AddHead(9000003);
-            
+
             collection.InsertOne(player);
 
             return player;
@@ -99,6 +103,20 @@ namespace AscNet.Common.Database
 
             FubenMainLineData.TreasureData.Add(id);
             return true;
+        }
+
+        public bool AddGatherReward(int id)
+        {
+            if (GatherRewards.Contains(id)) return false;
+
+            GatherRewards.Add(id);
+            return true;
+        }
+
+        public void AddTask(TaskItem item)
+        {
+            if (!Tasks.TryAdd(item.Id, item))
+                Tasks[item.Id] = item;
         }
 
         public void Save()
@@ -134,5 +152,9 @@ namespace AscNet.Common.Database
 
         [BsonElement("fuben_main_line_data")]
         public FubenMainLineData FubenMainLineData { get; set; } = new();
+
+        [BsonElement("tasks")]
+        [BsonDictionaryOptions(DictionaryRepresentation.ArrayOfDocuments)]
+        public Dictionary<uint, TaskItem> Tasks { get; set; } = [];
     }
 }

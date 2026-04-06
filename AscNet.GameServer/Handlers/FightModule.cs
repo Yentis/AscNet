@@ -1,11 +1,8 @@
-﻿using AscNet.Common;
-using AscNet.Common.Database;
+﻿using AscNet.Common.Database;
 using AscNet.Common.MsgPack;
 using AscNet.Common.Util;
-using AscNet.GameServer.Handlers.Drops;
 using AscNet.Table.V2.share.character.skill;
 using AscNet.Table.V2.share.fuben;
-using AscNet.Table.V2.share.item;
 using AscNet.Table.V2.share.reward;
 using AscNet.Table.V2.share.robot;
 using MessagePack;
@@ -173,7 +170,7 @@ namespace AscNet.GameServer.Handlers
                 return;
             }
 
-            var levelControl = TableReaderV2.Parse<Table.V2.share.fuben.StageLevelControlTable>().Where(x => x.StageId == stageTable.StageId).OrderBy(x => Math.Abs(session.player.PlayerData.Level - x.MaxLevel)).FirstOrDefault();
+            var levelControl = TableReaderV2.Parse<StageLevelControlTable>().Where(x => x.StageId == stageTable.StageId).OrderBy(x => Math.Abs(session.player.PlayerData.Level - x.MaxLevel)).FirstOrDefault();
 
             PreFightResponse rsp = new()
             {
@@ -355,11 +352,28 @@ namespace AscNet.GameServer.Handlers
             stageTable.CardExp *= challengeCount;
             stageTable.TeamExp *= challengeCount;
 
-            List<List<RewardGoods>> multiRewards = new();
-            List<RewardTable> rewardTables = TableReaderV2.Parse<RewardTable>().Where(x => session.stage.Stages.ContainsKey(req.Result.StageId) ? x.Id == stageTable.FinishDropId : (x.Id == stageTable.FinishDropId || x.Id == stageTable.FirstRewardId)).ToList();
+            List<List<RewardGoods>> multiRewards = [];
+            List<int?> rewardIds = session.stage.Stages.ContainsKey(req.Result.StageId) ? [stageTable.FinishDropId] : [stageTable.FinishDropId, stageTable.FirstRewardId];
+
+            var rewardTables = rewardIds.Select(x =>
+            {
+                if (x == null) return null;
+                TableReaderV2.RewardTableDict.TryGetValue((int)x, out var rewardTable);
+                return rewardTable;
+            }).ToList();
+
             if (rewardTables.Count == 0)
             {
-                rewardTables.AddRange(TableReaderV2.Parse<RewardTable>().Where(x => session.stage.Stages.ContainsKey(req.Result.StageId) ? x.Id == stageTable.FinishRewardShow : (x.Id == stageTable.FinishRewardShow || x.Id == stageTable.FirstRewardShow)));
+                List<int?> rewardShowIds = session.stage.Stages.ContainsKey(req.Result.StageId) ? [stageTable.FinishRewardShow] : [stageTable.FinishRewardShow, stageTable.FirstRewardShow];
+
+                var rewardShowTables = rewardShowIds.Select(x =>
+                {
+                    if (x == null) return null;
+                    TableReaderV2.RewardTableDict.TryGetValue((int)x, out var rewardTable);
+                    return rewardTable;
+                });
+
+                rewardTables.AddRange(rewardShowTables);
             }
 
             NotifyItemDataList notifyItemData = new();
@@ -368,11 +382,18 @@ namespace AscNet.GameServer.Handlers
             for (int i = 0; i < challengeCount; i++)
             {
                 var rewardGoods = rewardTables
+                    .OfType<RewardTable>()
                     .SelectMany(x => x.SubIds)
-                    .Select(x => TableReaderV2.Parse<RewardGoodsTable>().FirstOrDefault(y => y.Id == x))
+                    .Select(x =>
+                    {
+                        TableReaderV2.RewardGoodsTableDict.TryGetValue(x, out var rewardGoodsTable);
+                        return rewardGoodsTable;
+                    })
                     .OfType<RewardGoodsTable>();
 
-                var rewards = RewardHandler.GiveRewards(rewardGoods, session);
+                var rewards = RewardHandler.GetRewards(rewardGoods, session);
+                RewardHandler.GiveRewards(rewards, session);
+
                 multiRewards.Add(new List<RewardGoods>(rewards));
             }
 

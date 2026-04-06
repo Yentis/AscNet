@@ -1,11 +1,11 @@
-﻿using AscNet.Common.Database;
+﻿using System.Diagnostics;
+using AscNet.Common.Database;
 using AscNet.Common.MsgPack;
 using AscNet.Common.Util;
 using AscNet.Table.V2.share.chat;
 using AscNet.Table.V2.share.guide;
 using AscNet.Table.V2.share.photomode;
 using MessagePack;
-using System.Diagnostics;
 
 namespace AscNet.GameServer.Handlers
 {
@@ -158,6 +158,13 @@ namespace AscNet.GameServer.Handlers
         // TODO: Move somewhere else, also split.
         static void DoLogin(Session session)
         {
+            var curTime = DateTimeOffset.Now.ToUnixTimeSeconds();
+            var curDay = curTime / 86400;
+            var lastLoginDay = session.player.PlayerData.LastLoginTime / 86400;
+            var isNewDay = curDay > lastLoginDay;
+
+            session.player.PlayerData.LastLoginTime = curTime;
+
             NotifyLogin notifyLogin = new()
             {
                 PlayerData = session.player.PlayerData,
@@ -182,7 +189,7 @@ namespace AscNet.GameServer.Handlers
 
             NotifyStageData notifyStageData = new()
             {
-                StageList = session.stage.Stages.Values.ToList()
+                StageList = [.. session.stage.Stages.Values]
             };
 
             StageDatum stageForChat = new()
@@ -199,8 +206,8 @@ namespace AscNet.GameServer.Handlers
                 CreateTime = DateTimeOffset.Now.ToUnixTimeSeconds(),
                 BestRecordTime = 0,
                 LastRecordTime = 0,
-                BestCardIds = new List<long> { 1021001 },
-                LastCardIds = new List<long> { 1021001 }
+                BestCardIds = [1021001],
+                LastCardIds = [1021001]
             };
 
             if (!notifyStageData.StageList.Any(x => x.StageId == stageForChat.StageId))
@@ -243,14 +250,31 @@ namespace AscNet.GameServer.Handlers
                 HaveBackgroundIds = TableReaderV2.Parse<BackgroundTable>().Select(x => (uint)x.Id).ToList()
             };
 
-            NotifyTaskData notifyTaskData = new()
+            TaskModule.Init(session, isNewDay);
+
+            NotifyGatherRewardList notifyGatherRewardList = new()
             {
-                TaskData = new()
-                {
-                    NewbieHonorReward = false,
-                    NewbieUnlockPeriod = 7,
-                    Course = session.stage.Course,
-                }
+                GatherRewards = session.player.GatherRewards,
+            };
+
+            NotifyBirthdayPlot notifyBirthdayPlot = new()
+            {
+                IsChange = session.player.PlayerData.Birthday != null ? 1 : 0
+            };
+
+            NotifyPracticeData notifyPracticeData = new()
+            {
+                ChapterInfos = [.. session.stage.GetPracticeChapterInfos().Values]
+            };
+
+            if (isNewDay)
+            {
+                session.player.PlayerData.NewPlayerTaskActiveDay += 1;
+            }
+
+            NotifyNewPlayerTaskStatus notifyNewPlayerTaskStatus = new()
+            {
+                NewPlayerTaskActiveDay = session.player.PlayerData.NewPlayerTaskActiveDay
             };
 
             session.SendPush(notifyLogin);
@@ -270,7 +294,10 @@ namespace AscNet.GameServer.Handlers
                 },
                 BossInfo = new()
             });
-            session.SendPush(notifyTaskData);
+            session.SendPush(notifyGatherRewardList);
+            session.SendPush(notifyBirthdayPlot);
+            session.SendPush(notifyPracticeData);
+            session.SendPush(notifyNewPlayerTaskStatus);
 
             #region DisclamerMail
             NotifyMails notifyMails = new();
@@ -325,6 +352,8 @@ Sorry for the inconvenience.
                 }
             });
             session.SendPush(new NotifyBfrtData() { BfrtData = new() });
+
+            TaskModule.OnReady(session);
         }
     }
 }

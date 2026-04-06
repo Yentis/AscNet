@@ -1,8 +1,7 @@
-﻿using MessagePack;
-using AscNet.Common.MsgPack;
+﻿using AscNet.Common.MsgPack;
 using AscNet.Common.Util;
 using AscNet.Table.V2.share.exhibition;
-using AscNet.Table.V2.share.reward;
+using MessagePack;
 
 namespace AscNet.GameServer.Handlers
 {
@@ -30,15 +29,23 @@ namespace AscNet.GameServer.Handlers
         {
             GatherRewardRequest req = MessagePackSerializer.Deserialize<GatherRewardRequest>(packet.Content);
             ExhibitionRewardTable? exhibitionReward = TableReaderV2.Parse<ExhibitionRewardTable>().Find(x => x.Id == req.Id);
-            IEnumerable<RewardGoodsTable> rewardGoods = TableReaderV2.Parse<RewardGoodsTable>().Where(x => (TableReaderV2.Parse<RewardTable>().Find(x => x.Id == exhibitionReward?.RewardId)?.SubIds ?? new List<int>()).Contains(x.Id));
+            var rewardId = exhibitionReward?.RewardId;
+            if (rewardId == null)
+            {
+                session.SendResponse(new GatherRewardResponse() { Code = 1 }, packet.Id);
+                return;
+            }
+
+            var rewards = RewardHandler.GetRewards((int)rewardId, session);
+            var success = session.player.AddGatherReward(req.Id);
+            if (success) RewardHandler.GiveRewards(rewards, session);
 
             GatherRewardResponse rsp = new()
             {
-                RewardGoods = RewardHandler.GiveRewards(rewardGoods, session)
+                RewardGoods = [.. rewards]
             };
 
-            session.player.GatherRewards.Add(req.Id);
-            session.SendPush(new NotifyGatherReward() { Id =  req.Id });
+            session.SendPush(new NotifyGatherReward() { Id = req.Id });
             session.SendResponse(rsp, packet.Id);
         }
     }
