@@ -53,16 +53,20 @@ namespace AscNet.Common.Database
             return character;
         }
 
+        public static CharacterQualityTable? GetMinCharacterQuality(int id)
+        {
+            TableReaderV2.CharacterQualityDict.TryGetValue(id, out var characterQualities);
+            return characterQualities?.MinBy(x => x.Quality);
+        }
+
         public static CharacterQualityFragmentTable? GetMinCharacterFragment(int id)
         {
-            var characterMinQuality = TableReaderV2
-                .Parse<CharacterQualityTable>()
-                .Where(x => x.CharacterId == id)
-                .Min(x => x.Quality);
+            var minQuality = GetMinCharacterQuality(id);
+            if (minQuality == null) return null;
 
             return TableReaderV2
                 .Parse<CharacterQualityFragmentTable>()
-                .FirstOrDefault(x => x.Quality == characterMinQuality);
+                .FirstOrDefault(x => x.Quality == minQuality.Quality);
         }
 
         /// <summary>
@@ -75,7 +79,7 @@ namespace AscNet.Common.Database
             AddCharacterRet ret = new();
             TableReaderV2.CharacterTableDict.TryGetValue((int)id, out var character);
             CharacterSkillTable? characterSkill = TableReaderV2.Parse<CharacterSkillTable>().Find(x => x.CharacterId == id);
-            CharacterQualityTable? characterQuality = TableReaderV2.Parse<CharacterQualityTable>().OrderBy(x => x.Quality).FirstOrDefault(x => x.CharacterId == id);
+            var characterQuality = GetMinCharacterQuality((int)id);
 
             if (character is null || characterSkill is null || characterQuality is null)
             {

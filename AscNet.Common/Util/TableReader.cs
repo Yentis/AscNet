@@ -1,10 +1,12 @@
 using System.Reflection;
 using AscNet.Logging;
 using AscNet.Table.V2.share.character;
+using AscNet.Table.V2.share.character.quality;
 using AscNet.Table.V2.share.config;
 using AscNet.Table.V2.share.equip;
 using AscNet.Table.V2.share.item;
 using AscNet.Table.V2.share.reward;
+using AscNet.Table.V2.share.robot;
 using AscNet.Table.V2.share.task;
 
 namespace AscNet.Common.Util
@@ -51,6 +53,8 @@ namespace AscNet.Common.Util
         public static readonly Dictionary<int, CharacterTable> CharacterTableDict;
         public static readonly Dictionary<int, TaskTable> TaskTableDict;
         public static readonly Dictionary<int, ConditionTable> ConditionTableDict;
+        public static readonly Dictionary<int, RobotTable> RobotTableDict;
+        public static readonly Dictionary<int, List<CharacterQualityTable>> CharacterQualityDict;
 
         private static readonly Dictionary<Type, object> cache = [];
         private static readonly Logger c = new(typeof(TableReaderV2), nameof(TableReaderV2), LogLevel.DEBUG, LogLevel.DEBUG);
@@ -65,6 +69,8 @@ namespace AscNet.Common.Util
             CharacterTableDict = Parse<CharacterTable>().ToDictionary(x => x.Id);
             TaskTableDict = Parse<TaskTable>().ToDictionary(x => x.Id);
             ConditionTableDict = Parse<ConditionTable>().ToDictionary(x => x.Id);
+            RobotTableDict = Parse<RobotTable>().ToDictionary(x => x.Id);
+            CharacterQualityDict = Parse<CharacterQualityTable>().GroupBy(x => x.CharacterId).ToDictionary(x => x.Key, x => x.ToList());
         }
 
         public static List<T> Parse<T>() where T : ITable

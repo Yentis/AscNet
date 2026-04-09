@@ -4,7 +4,6 @@ using AscNet.Common.Util;
 using AscNet.GameServer.Handlers;
 using AscNet.Logging;
 using AscNet.Table.V2.client.draw;
-using AscNet.Table.V2.share.character.quality;
 using AscNet.Table.V2.share.equip;
 using AscNet.Table.V2.share.item;
 
@@ -13,7 +12,6 @@ namespace AscNet.GameServer.Game
     internal class DrawManager
     {
         public static readonly List<DrawSceneTable> drawSceneTables = TableReaderV2.Parse<DrawSceneTable>();
-        public static readonly List<CharacterQualityTable> characterQualitiesTables = TableReaderV2.Parse<CharacterQualityTable>();
         static readonly Logger log = new(typeof(DrawManager), LogLevel.DEBUG, LogLevel.DEBUG);
 
         #region DrawTags
@@ -69,7 +67,7 @@ namespace AscNet.GameServer.Game
                     infos.AddRange(drawSceneTables.Where(x => x.Type == 1 && TableReaderV2.CharacterTableDict.Values.Any(y =>
                     {
                         // only get the S chars since this is Arrival Construct
-                        int firstQuality = characterQualitiesTables.Where(x => x.CharacterId == y.Id).OrderBy(x => x.Quality).FirstOrDefault()?.Quality ?? 0;
+                        var firstQuality = Character.GetMinCharacterQuality(y.Id)?.Quality ?? 0;
                         return y.Type == 1 && y.Id == x.ModelId && firstQuality == 3;
                     })).DistinctBy(x => x.ModelId).Select(x => new DrawInfo()
                     {
@@ -87,7 +85,7 @@ namespace AscNet.GameServer.Game
                     infos.AddRange(drawSceneTables.Where(x => x.Type == 1 && TableReaderV2.CharacterTableDict.Values.Any(y =>
                     {
                         // only get the A chars since this is member target
-                        int firstQuality = characterQualitiesTables.Where(x => x.CharacterId == y.Id).OrderBy(x => x.Quality).FirstOrDefault()?.Quality ?? 0;
+                        var firstQuality = Character.GetMinCharacterQuality(y.Id)?.Quality ?? 0;
                         return y.Type == 1 && y.Id == x.ModelId && firstQuality == 2;
                     })).DistinctBy(x => x.ModelId).Select(x => new DrawInfo()
                     {
@@ -147,11 +145,7 @@ namespace AscNet.GameServer.Game
 
                             foreach (var character in TableReaderV2.CharacterTableDict.Values)
                             {
-                                CharacterQualityTable? characterQuality = TableReaderV2
-                                    .Parse<CharacterQualityTable>()
-                                    .OrderBy(x => x.Quality)
-                                    .FirstOrDefault(x => x.CharacterId == character.Id);
-
+                                var characterQuality = Character.GetMinCharacterQuality(character.Id);
                                 if (characterQuality is null) continue;
 
                                 if (characterQuality.Quality >= 3 && drawPool.GoodsId.Contains(character.Id))
@@ -163,11 +157,7 @@ namespace AscNet.GameServer.Game
                             {
                                 foreach (var character in TableReaderV2.CharacterTableDict.Values)
                                 {
-                                    CharacterQualityTable? characterQuality = TableReaderV2
-                                        .Parse<CharacterQualityTable>()
-                                        .OrderBy(x => x.Quality)
-                                        .FirstOrDefault(x => x.CharacterId == character.Id);
-
+                                    var characterQuality = Character.GetMinCharacterQuality(character.Id);
                                     if (character is null || characterQuality is null)
                                         continue;
 
@@ -182,7 +172,7 @@ namespace AscNet.GameServer.Game
                             {
                                 int rand = pool[Random.Shared.Next(pool.Count)];
                                 TableReaderV2.CharacterTableDict.TryGetValue(rand, out var character);
-                                CharacterQualityTable? characterQuality = TableReaderV2.Parse<CharacterQualityTable>().OrderBy(x => x.Quality).FirstOrDefault(x => x.CharacterId == rand);
+                                var characterQuality = Character.GetMinCharacterQuality(rand);
 
                                 rewards.Add(new()
                                 {
@@ -198,7 +188,7 @@ namespace AscNet.GameServer.Game
                             if (drawPool.UpGoodsId.Count == 1)
                             {
                                 TableReaderV2.CharacterTableDict.TryGetValue(drawPool.UpGoodsId[0], out var character);
-                                CharacterQualityTable? characterQuality = TableReaderV2.Parse<CharacterQualityTable>().OrderBy(x => x.Quality).FirstOrDefault(x => x.CharacterId == drawPool.UpGoodsId[0]);
+                                var characterQuality = Character.GetMinCharacterQuality(drawPool.UpGoodsId[0]);
 
                                 rewards.Add(new()
                                 {
@@ -212,7 +202,7 @@ namespace AscNet.GameServer.Game
                             {
                                 int rand = drawPool.UpGoodsId[Random.Shared.Next(drawPool.UpGoodsId.Count)];
                                 TableReaderV2.CharacterTableDict.TryGetValue(rand, out var character);
-                                CharacterQualityTable? characterQuality = TableReaderV2.Parse<CharacterQualityTable>().OrderBy(x => x.Quality).FirstOrDefault(x => x.CharacterId == rand);
+                                var characterQuality = Character.GetMinCharacterQuality(rand);
 
                                 rewards.Add(new()
                                 {
@@ -240,7 +230,7 @@ namespace AscNet.GameServer.Game
                             if (drawPool.UpGoodsId.Count == 1)
                             {
                                 TableReaderV2.CharacterTableDict.TryGetValue(drawPool.UpGoodsId[0], out var character);
-                                CharacterQualityTable? characterQuality = TableReaderV2.Parse<CharacterQualityTable>().OrderBy(x => x.Quality).FirstOrDefault(x => x.CharacterId == drawPool.UpGoodsId[0]);
+                                var characterQuality = Character.GetMinCharacterQuality(drawPool.UpGoodsId[0]);
 
                                 if (characterQuality?.Quality == 2)
                                     rewards.Add(new()
@@ -259,11 +249,11 @@ namespace AscNet.GameServer.Game
                         }
                         else
                         {
-                            List<int> pool = new();
+                            List<int> pool = [];
 
                             foreach (var character in TableReaderV2.CharacterTableDict.Values)
                             {
-                                CharacterQualityTable? characterQuality = TableReaderV2.Parse<CharacterQualityTable>().OrderBy(x => x.Quality).FirstOrDefault(x => x.CharacterId == character.Id);
+                                var characterQuality = Character.GetMinCharacterQuality(character.Id);
                                 if (characterQuality is null) continue;
 
                                 if (characterQuality.Quality == 2 && drawPool.GoodsId.Contains(character.Id))
@@ -275,7 +265,7 @@ namespace AscNet.GameServer.Game
                             {
                                 foreach (var character in TableReaderV2.CharacterTableDict.Values)
                                 {
-                                    CharacterQualityTable? characterQuality = TableReaderV2.Parse<CharacterQualityTable>().OrderBy(x => x.Quality).FirstOrDefault(x => x.CharacterId == character.Id);
+                                    var characterQuality = Character.GetMinCharacterQuality(character.Id);
                                     if (characterQuality is null) continue;
 
                                     if (characterQuality.Quality == 2 && !drawPool.UpGoodsId.Contains(character.Id))
@@ -289,7 +279,7 @@ namespace AscNet.GameServer.Game
                             {
                                 int rand = pool[Random.Shared.Next(pool.Count)];
                                 TableReaderV2.CharacterTableDict.TryGetValue(rand, out var character);
-                                CharacterQualityTable? characterQuality = TableReaderV2.Parse<CharacterQualityTable>().OrderBy(x => x.Quality).FirstOrDefault(x => x.CharacterId == rand);
+                                var characterQuality = Character.GetMinCharacterQuality(rand);
 
                                 rewards.Add(new()
                                 {
@@ -307,7 +297,7 @@ namespace AscNet.GameServer.Game
 
                         foreach (var character in TableReaderV2.CharacterTableDict.Values)
                         {
-                            CharacterQualityTable? characterQuality = TableReaderV2.Parse<CharacterQualityTable>().OrderBy(x => x.Quality).FirstOrDefault(x => x.CharacterId == character.Id);
+                            var characterQuality = Character.GetMinCharacterQuality(character.Id);
                             if (characterQuality is null) continue;
 
                             if (characterQuality.Quality == 1 && drawPool.GoodsId.Contains(character.Id))
@@ -319,7 +309,7 @@ namespace AscNet.GameServer.Game
                         {
                             foreach (var character in TableReaderV2.CharacterTableDict.Values)
                             {
-                                CharacterQualityTable? characterQuality = TableReaderV2.Parse<CharacterQualityTable>().OrderBy(x => x.Quality).FirstOrDefault(x => x.CharacterId == character.Id);
+                                var characterQuality = Character.GetMinCharacterQuality(character.Id);
                                 if (characterQuality is null) continue;
 
                                 if (characterQuality.Quality == 1 && !drawPool.UpGoodsId.Contains(character.Id))
@@ -333,7 +323,7 @@ namespace AscNet.GameServer.Game
                         {
                             int rand = pool[Random.Shared.Next(pool.Count)];
                             TableReaderV2.CharacterTableDict.TryGetValue(rand, out var character);
-                            CharacterQualityTable? characterQuality = TableReaderV2.Parse<CharacterQualityTable>().OrderBy(x => x.Quality).FirstOrDefault(x => x.CharacterId == rand);
+                            var characterQuality = Character.GetMinCharacterQuality(rand);
 
                             rewards.Add(new()
                             {
@@ -355,7 +345,7 @@ namespace AscNet.GameServer.Game
                         {
                             int rand = pool[Random.Shared.Next(pool.Count)];
                             TableReaderV2.CharacterTableDict.TryGetValue(rand, out var character);
-                            CharacterQualityTable? characterQuality = TableReaderV2.Parse<CharacterQualityTable>().OrderBy(x => x.Quality).FirstOrDefault(x => x.CharacterId == rand);
+                            var characterQuality = Character.GetMinCharacterQuality(rand);
 
                             if (character is not null)
                                 rewards.Add(new()

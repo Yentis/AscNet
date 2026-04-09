@@ -4,7 +4,6 @@ using AscNet.Common.Util;
 using AscNet.Table.V2.share.character.skill;
 using AscNet.Table.V2.share.fuben;
 using AscNet.Table.V2.share.reward;
-using AscNet.Table.V2.share.robot;
 using MessagePack;
 
 namespace AscNet.GameServer.Handlers
@@ -220,7 +219,7 @@ namespace AscNet.GameServer.Handlers
                 int npcKey = rsp.FightData.RoleData.First(x => x.Id == session.player.PlayerData.Id).NpcData.Keys.Count;
                 foreach (var robotId in stageTable.RobotId)
                 {
-                    RobotTable? robot = TableReaderV2.Parse<RobotTable>().Find(x => x.Id == robotId);
+                    TableReaderV2.RobotTableDict.TryGetValue(robotId, out var robot);
                     if (robot is null)
                         continue;
 
@@ -340,6 +339,12 @@ namespace AscNet.GameServer.Handlers
         public static void FightSettleRequestHandler(Session session, Packet.Request packet)
         {
             FightSettleRequest req = MessagePackSerializer.Deserialize<FightSettleRequest>(packet.Content);
+            if (!req.Result.IsWin)
+            {
+                session.SendResponse(new FightSettleResponse(), packet.Id);
+                return;
+            }
+
             StageTable? stageTable = TableReaderV2.Parse<StageTable>().FirstOrDefault(x => x.StageId == req.Result.StageId);
             if (stageTable is null)
             {
